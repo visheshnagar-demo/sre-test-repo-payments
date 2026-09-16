@@ -92,28 +92,28 @@ def calculate_late_fee(
     """
     daily_rate = ANNUAL_LATE_RATE / 365.0
 
-    if installment_count <= 0:
-        logger.warning(
-            "calculate_late_fee called with installment_count=%d <= 0. Returning late_fee=0.0",
-            installment_count,
-        )
-        return {"late_fee": 0.0, "daily_rate": daily_rate}
-
-    if principal < 0 or overdue_days < 0:
-        logger.warning(
-            "calculate_late_fee called with invalid principal=%.2f or overdue_days=%d",
-            principal,
-            overdue_days,
-        )
-        return {"late_fee": 0.0, "daily_rate": daily_rate}
-
     try:
+        if not installment_count or installment_count <= 0:
+            logger.warning(
+                "calculate_late_fee called with installment_count=%s <= 0. Returning late_fee=0.0",
+                installment_count,
+            )
+            return {"late_fee": 0.0, "daily_rate": daily_rate}
+
+        if principal < 0 or overdue_days < 0:
+            logger.warning(
+                "calculate_late_fee called with invalid principal=%s or overdue_days=%s",
+                principal,
+                overdue_days,
+            )
+            return {"late_fee": 0.0, "daily_rate": daily_rate}
+
         per_installment = principal / installment_count
         late_fee = per_installment * daily_rate * overdue_days
         return {"late_fee": round(late_fee, 2), "daily_rate": daily_rate}
     except ZeroDivisionError as exc:
         logger.exception(
-            "ZeroDivisionError caught in calculate_late_fee for installment_count=%d: %s",
+            "ZeroDivisionError caught in calculate_late_fee for installment_count=%s: %s",
             installment_count,
             exc,
         )
