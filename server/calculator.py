@@ -18,8 +18,10 @@ def retry_on_exception(
     exceptions: tuple = (Exception,),
 ) -> Callable:
     """Decorator to retry a sync or async function on specified exceptions."""
+
     def decorator(func: Callable) -> Callable:
         if asyncio.iscoroutinefunction(func):
+
             @functools.wraps(func)
             async def async_wrapper(*args: Any, **kwargs: Any) -> Any:
                 current_delay = delay
@@ -45,8 +47,10 @@ def retry_on_exception(
                         )
                         await asyncio.sleep(current_delay)
                         current_delay *= backoff
+
             return async_wrapper
         else:
+
             @functools.wraps(func)
             def sync_wrapper(*args: Any, **kwargs: Any) -> Any:
                 current_delay = delay
@@ -72,11 +76,15 @@ def retry_on_exception(
                         )
                         time.sleep(current_delay)
                         current_delay *= backoff
+
             return sync_wrapper
+
     return decorator
 
 
-def calculate_late_fee(principal: float, overdue_days: int, installment_count: int) -> Dict[str, float]:
+def calculate_late_fee(
+    principal: float, overdue_days: int, installment_count: int
+) -> Dict[str, float]:
     """Calculate penalty for an overdue loan installment.
 
     Handles ZeroDivisionError and invalid inputs safely, returning late_fee=0.0 when

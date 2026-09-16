@@ -11,7 +11,9 @@ logger = logging.getLogger(__name__)
 _PAYMENTS_DB: Dict[str, Dict[str, Any]] = {}
 
 
-def safe_calculate_late_fee(principal: float, overdue_days: int, installment_count: int) -> Dict[str, float]:
+def safe_calculate_late_fee(
+    principal: float, overdue_days: int, installment_count: int
+) -> Dict[str, float]:
     """Safely calculate late fee without allowing ZeroDivisionError to escape."""
     try:
         return calculate_late_fee(principal, overdue_days, installment_count)
