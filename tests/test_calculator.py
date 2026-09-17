@@ -1,8 +1,9 @@
-"""Unit tests for calculate_late_fee and retry mechanism in server.calculator."""
+"""Unit tests for calculate_late_fee and retry mechanism in server.calculator and app.calculator."""
 
 import pytest
 
 from server.calculator import calculate_late_fee, retry_on_exception
+from app.calculator import calculate_late_fee as app_calculate_late_fee
 
 DAILY_RATE = 0.18 / 365.0
 
@@ -16,6 +17,13 @@ def test_normal_loan_produces_positive_fee():
 def test_zero_installments_returns_zero():
     """Fully-paid loan (installment_count=0) must return 0.0, not raise ZeroDivisionError."""
     result = calculate_late_fee(10000.0, 30, 0)
+    assert result["late_fee"] == 0.0
+    assert result["daily_rate"] == pytest.approx(DAILY_RATE, rel=1e-6)
+
+
+def test_app_zero_installments_returns_zero():
+    """Verify app.calculator zero installments returns 0.0 safely."""
+    result = app_calculate_late_fee(10000.0, 30, 0)
     assert result["late_fee"] == 0.0
     assert result["daily_rate"] == pytest.approx(DAILY_RATE, rel=1e-6)
 
