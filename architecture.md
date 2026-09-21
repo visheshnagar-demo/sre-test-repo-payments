@@ -22,7 +22,6 @@ graph TD
 - server/calculator.py
 - server/main.py
 - server/models.py
-- server/payments.py
 
 ## Frontend Modules (client/)
 - (no client/ files found yet)

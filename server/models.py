@@ -1,13 +1,10 @@
-"""Pydantic models for SRE Payments Service."""
-
-from typing import Optional
-from pydantic import BaseModel, Field
+from pydantic import BaseModel
 
 
 class LateFeeRequest(BaseModel):
-    principal: float = Field(..., description="Principal amount of the loan")
-    overdue_days: int = Field(..., description="Number of overdue days")
-    installment_count: int = Field(..., description="Number of installments")
+    principal: float
+    overdue_days: int
+    installment_count: int
 
 
 class LateFeeResponse(BaseModel):
@@ -25,14 +22,3 @@ class PaymentResponse(BaseModel):
     payment_id: str
     status: str
     amount: float
-
-
-class ChargeRequest(BaseModel):
-    payment_id: str
-    amount: float
-    borrower_id: str
-
-
-class RefundRequest(BaseModel):
-    payment_id: str
-    amount: Optional[float] = None

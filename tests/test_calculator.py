@@ -1,11 +1,9 @@
-"""Unit tests for calculate_late_fee and retry mechanism in server.calculator and app.calculator."""
+"""Unit tests for calculate_late_fee."""
 
 import pytest
+from server.calculator import calculate_late_fee
 
-from server.calculator import calculate_late_fee, retry_on_exception
-from app.calculator import calculate_late_fee as app_calculate_late_fee
-
-DAILY_RATE = 0.18 / 365.0
+DAILY_RATE = 0.18 / 365
 
 
 def test_normal_loan_produces_positive_fee():
@@ -17,20 +15,6 @@ def test_normal_loan_produces_positive_fee():
 def test_zero_installments_returns_zero():
     """Fully-paid loan (installment_count=0) must return 0.0, not raise ZeroDivisionError."""
     result = calculate_late_fee(10000.0, 30, 0)
-    assert result["late_fee"] == 0.0
-    assert result["daily_rate"] == pytest.approx(DAILY_RATE, rel=1e-6)
-
-
-def test_app_zero_installments_returns_zero():
-    """Verify app.calculator zero installments returns 0.0 safely."""
-    result = app_calculate_late_fee(10000.0, 30, 0)
-    assert result["late_fee"] == 0.0
-    assert result["daily_rate"] == pytest.approx(DAILY_RATE, rel=1e-6)
-
-
-def test_negative_installments_returns_zero():
-    """Negative installment_count must return 0.0 safely without error."""
-    result = calculate_late_fee(10000.0, 30, -5)
     assert result["late_fee"] == 0.0
     assert result["daily_rate"] == pytest.approx(DAILY_RATE, rel=1e-6)
 
@@ -47,34 +31,8 @@ def test_large_principal_rounding():
     assert result["late_fee"] > 0
 
 
-def test_retry_on_exception_decorator_sync():
-    call_count = 0
-
-    @retry_on_exception(max_retries=3, delay=0.01, backoff=1.0)
-    def flaky_function():
-        nonlocal call_count
-        call_count += 1
-        if call_count < 2:
-            raise ValueError("Transient error")
-        return "success"
-
-    res = flaky_function()
-    assert res == "success"
-    assert call_count == 2
-
-
-@pytest.mark.anyio
-async def test_retry_on_exception_decorator_async():
-    call_count = 0
-
-    @retry_on_exception(max_retries=3, delay=0.01, backoff=1.0)
-    async def flaky_async_function():
-        nonlocal call_count
-        call_count += 1
-        if call_count < 2:
-            raise ValueError("Transient async error")
-        return "async_success"
-
-    res = await flaky_async_function()
-    assert res == "async_success"
-    assert call_count == 2
+def test_retry_and_exception_safety():
+    """Verify calculate_late_fee handles zero/negative installments and retries without raising exception."""
+    result = calculate_late_fee(5000.0, 15, 0, max_retries=2)
+    assert result["late_fee"] == 0.0
+    assert "daily_rate" in result

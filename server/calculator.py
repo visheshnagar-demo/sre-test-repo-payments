@@ -1,123 +1,55 @@
-"""Loan late-fee calculator with robust exception handling and retry logic."""
+"""Loan late-fee calculator with exception handling and retry logic."""
 
-import asyncio
-import functools
 import logging
 import time
-from typing import Callable, Any, Dict
 
 logger = logging.getLogger(__name__)
 
 ANNUAL_LATE_RATE = 0.18
 
 
-def retry_on_exception(
-    max_retries: int = 3,
-    delay: float = 0.1,
-    backoff: float = 2.0,
-    exceptions: tuple = (Exception,),
-) -> Callable:
-    """Decorator to retry a sync or async function on specified exceptions."""
-
-    def decorator(func: Callable) -> Callable:
-        if asyncio.iscoroutinefunction(func):
-
-            @functools.wraps(func)
-            async def async_wrapper(*args: Any, **kwargs: Any) -> Any:
-                current_delay = delay
-                for attempt in range(1, max_retries + 1):
-                    try:
-                        return await func(*args, **kwargs)
-                    except exceptions as exc:
-                        if attempt == max_retries:
-                            logger.error(
-                                "Function %s failed after %d retries. Error: %s",
-                                func.__name__,
-                                max_retries,
-                                exc,
-                            )
-                            raise
-                        logger.warning(
-                            "Attempt %d/%d for %s failed with %s. Retrying in %.2fs...",
-                            attempt,
-                            max_retries,
-                            func.__name__,
-                            exc,
-                            current_delay,
-                        )
-                        await asyncio.sleep(current_delay)
-                        current_delay *= backoff
-
-            return async_wrapper
-        else:
-
-            @functools.wraps(func)
-            def sync_wrapper(*args: Any, **kwargs: Any) -> Any:
-                current_delay = delay
-                for attempt in range(1, max_retries + 1):
-                    try:
-                        return func(*args, **kwargs)
-                    except exceptions as exc:
-                        if attempt == max_retries:
-                            logger.error(
-                                "Function %s failed after %d retries. Error: %s",
-                                func.__name__,
-                                max_retries,
-                                exc,
-                            )
-                            raise
-                        logger.warning(
-                            "Attempt %d/%d for %s failed with %s. Retrying in %.2fs...",
-                            attempt,
-                            max_retries,
-                            func.__name__,
-                            exc,
-                            current_delay,
-                        )
-                        time.sleep(current_delay)
-                        current_delay *= backoff
-
-            return sync_wrapper
-
-    return decorator
-
-
 def calculate_late_fee(
-    principal: float, overdue_days: int, installment_count: int
-) -> Dict[str, float]:
+    principal: float, overdue_days: int, installment_count: int, max_retries: int = 3
+) -> dict:
     """Calculate penalty for an overdue loan installment.
 
-    Handles ZeroDivisionError and invalid inputs safely, returning late_fee=0.0 when
-    installment_count is <= 0 or when division by zero occurs.
+    Includes guard for installment_count=0 (ZeroDivisionError) and retry logic with logging.
+    Returns late_fee=0.0 when installment_count is zero (fully-paid loan edge case).
     """
-    daily_rate = ANNUAL_LATE_RATE / 365.0
+    daily_rate = ANNUAL_LATE_RATE / 365
 
-    try:
-        if not installment_count or installment_count <= 0:
-            logger.warning(
-                "calculate_late_fee called with installment_count=%s <= 0. Returning late_fee=0.0",
-                installment_count,
+    for attempt in range(max_retries):
+        try:
+            if installment_count <= 0:
+                logger.warning(
+                    "installment_count is %d (<= 0) for principal %.2f. Defaulting late_fee to 0.0",
+                    installment_count,
+                    principal,
+                )
+                return {"late_fee": 0.0, "daily_rate": daily_rate}
+
+            per_installment = principal / installment_count
+            late_fee = per_installment * daily_rate * overdue_days
+            return {"late_fee": round(late_fee, 2), "daily_rate": daily_rate}
+        except ZeroDivisionError as e:
+            logger.error(
+                "ZeroDivisionError in calculate_late_fee (attempt %d/%d): %s",
+                attempt + 1,
+                max_retries,
+                e,
             )
-            return {"late_fee": 0.0, "daily_rate": daily_rate}
-
-        if principal < 0 or overdue_days < 0:
-            logger.warning(
-                "calculate_late_fee called with invalid principal=%s or overdue_days=%s",
-                principal,
-                overdue_days,
+            if attempt == max_retries - 1:
+                return {"late_fee": 0.0, "daily_rate": daily_rate}
+            time.sleep(0.01)
+        except Exception as e:
+            logger.error(
+                "Unexpected error in calculate_late_fee (attempt %d/%d): %s",
+                attempt + 1,
+                max_retries,
+                e,
             )
-            return {"late_fee": 0.0, "daily_rate": daily_rate}
+            if attempt == max_retries - 1:
+                return {"late_fee": 0.0, "daily_rate": daily_rate}
+            time.sleep(0.01)
 
-        per_installment = principal / installment_count
-        late_fee = per_installment * daily_rate * overdue_days
-        return {"late_fee": round(late_fee, 2), "daily_rate": daily_rate}
-    except ZeroDivisionError as exc:
-        logger.exception(
-            "ZeroDivisionError caught in calculate_late_fee for installment_count=%s: %s",
-            installment_count,
-            exc,
-        )
-        return {"late_fee": 0.0, "daily_rate": daily_rate}
-    except Exception as exc:
-        logger.exception("Unexpected error in calculate_late_fee: %s", exc)
-        return {"late_fee": 0.0, "daily_rate": daily_rate}
+    return {"late_fee": 0.0, "daily_rate": daily_rate}
