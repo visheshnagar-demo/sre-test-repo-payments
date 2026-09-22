@@ -57,7 +57,9 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
-ALLOWED_ORIGINS = os.getenv("ALLOWED_ORIGINS", "http://localhost:5173,http://localhost:3000").split(",")
+ALLOWED_ORIGINS = os.getenv(
+    "ALLOWED_ORIGINS", "http://localhost:5173,http://localhost:3000"
+).split(",")
 app.add_middleware(
     CORSMiddleware,
     allow_origins=ALLOWED_ORIGINS,
@@ -90,7 +92,9 @@ def readyz():
 @app.post("/calculate-late-fee", response_model=LateFeeResponse)
 def calculate_late_fee_endpoint(req: LateFeeRequest):
     try:
-        result = calculate_late_fee(req.principal, req.overdue_days, req.installment_count)
+        result = calculate_late_fee(
+            req.principal, req.overdue_days, req.installment_count
+        )
         return LateFeeResponse(**result)
     except Exception as e:
         logger.exception("Error processing calculate_late_fee_endpoint: %s", e)
@@ -99,7 +103,9 @@ def calculate_late_fee_endpoint(req: LateFeeRequest):
 
 @app.post("/process-payment", response_model=PaymentResponse)
 def process_payment(req: PaymentRequest):
-    logger.info("Payment accepted: payment_id=%s amount=%.2f", req.payment_id, req.amount)
+    logger.info(
+        "Payment accepted: payment_id=%s amount=%.2f", req.payment_id, req.amount
+    )
     return PaymentResponse(
         payment_id=req.payment_id,
         status="accepted",
