@@ -1,28 +1,39 @@
 """Unit tests for calculate_late_fee."""
 
 import pytest
-from server.calculator import calculate_late_fee
-
-DAILY_RATE = 0.18 / 365
+from server.calculator import DAILY_RATE, calculate_late_fee
 
 
-def test_normal_loan_produces_positive_fee():
-    result = calculate_late_fee(10000.0, 30, 12)
-    assert result["late_fee"] > 0
-    assert result["daily_rate"] == pytest.approx(DAILY_RATE, rel=1e-6)
+def test_normal_calculation():
+    result = calculate_late_fee(1000.0, 30, 3)
+    expected_fee = round((1000.0 * DAILY_RATE * 30) / 3, 2)
+    assert result["late_fee"] == expected_fee
+    assert result["principal"] == 1000.0
+    assert result["overdue_days"] == 30
+    assert result["installment_count"] == 3
+
+
+def test_zero_overdue_days():
+    result = calculate_late_fee(1000.0, 0, 3)
+    assert result["late_fee"] == 0.0
 
 
 def test_zero_installments_returns_zero():
-    """Fully-paid loan (installment_count=0) must return 0.0, not raise ZeroDivisionError."""
-    result = calculate_late_fee(10000.0, 30, 0)
+    """Verify that installment_count=0 returns late_fee=0.0 without ZeroDivisionError."""
+    result = calculate_late_fee(1000.0, 30, 0)
     assert result["late_fee"] == 0.0
-    assert result["daily_rate"] == pytest.approx(DAILY_RATE, rel=1e-6)
+    assert result["installment_count"] == 0
 
 
-def test_single_installment_fee_calculation():
-    result = calculate_late_fee(1000.0, 10, 1)
-    expected = round((1000.0 / 1) * DAILY_RATE * 10, 2)
-    assert result["late_fee"] == pytest.approx(expected, rel=1e-6)
+def test_negative_installments_returns_zero():
+    result = calculate_late_fee(1000.0, 30, -1)
+    assert result["late_fee"] == 0.0
+
+
+def test_single_installment():
+    result = calculate_late_fee(500.0, 10, 1)
+    expected_fee = round(500.0 * DAILY_RATE * 10, 2)
+    assert result["late_fee"] == expected_fee
 
 
 def test_large_principal_rounding():

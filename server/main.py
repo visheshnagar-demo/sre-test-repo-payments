@@ -1,20 +1,10 @@
-"""SRE Payments Test Service.
-
-Endpoints:
-  GET  /healthz             Liveness probe — always 200
-  GET  /readyz              Readiness probe — always 200
-  GET  /                    Service info
-  POST /calculate-late-fee  Late-fee calculation
-  POST /process-payment     Idempotent payment record — always succeeds
-"""
-
 import asyncio
+from contextlib import asynccontextmanager
 import logging
 import os
-from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, HTTPException
-from fastapi.middleware.cors import CORSMiddleware
+from starlette.middleware.cors import CORSMiddleware
 
 from server.calculator import calculate_late_fee
 from server.models import (
@@ -24,14 +14,17 @@ from server.models import (
     PaymentResponse,
 )
 
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger(__name__)
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s [%(levelname)s] %(name)s - %(message)s",
+)
+logger = logging.getLogger("payments-service")
 
 
-async def _error_loop() -> None:
-    """Periodically run calculation check safely without unhandled exceptions."""
+async def _error_loop():
+    """Background loop that simulates occasional calculations and logs appropriately."""
     while True:
-        await asyncio.sleep(60)
+        await asyncio.sleep(5)
         try:
             calculate_late_fee(1000.0, 30, 0)
         except Exception:
@@ -52,7 +45,7 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(
     title="SRE Payments Test Service",
-    description="BFSI loan payment service — used for L3 remediation pipeline testing",
+    description="Service for SRE incident simulation and late fee calculations",
     version="1.0.0",
     lifespan=lifespan,
 )
@@ -73,9 +66,8 @@ app.add_middleware(
 def root():
     return {
         "service": "sre-payments-test",
-        "version": "1.0.0",
-        "env": os.environ.get("APP_ENV", "clean"),
         "status": "running",
+        "version": "1.0.0",
     }
 
 
