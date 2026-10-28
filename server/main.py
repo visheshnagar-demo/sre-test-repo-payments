@@ -2,6 +2,7 @@ import asyncio
 from contextlib import asynccontextmanager
 import logging
 import os
+from typing import Any, Dict
 
 from fastapi import FastAPI, HTTPException
 from starlette.middleware.cors import CORSMiddleware
@@ -62,7 +63,7 @@ app.add_middleware(
 )
 
 
-@app.get("/")
+@app.get("/", response_model=Dict[str, Any])
 def root():
     return {
         "service": "sre-payments-test",
@@ -71,21 +72,44 @@ def root():
     }
 
 
-@app.get("/healthz")
+@app.get("/healthz", response_model=Dict[str, str])
 def healthz():
     return {"status": "ok"}
 
 
-@app.get("/readyz")
+@app.get("/readyz", response_model=Dict[str, str])
 def readyz():
     return {"status": "ready"}
 
 
+@app.get("/metrics", response_model=Dict[str, Any])
+def metrics():
+    return {
+        "service": "sre-payments-test",
+        "status": "healthy",
+        "metrics": {
+            "uptime_status": "ok",
+            "active": True,
+        },
+    }
+
+
 @app.post("/calculate-late-fee", response_model=LateFeeResponse)
 def calculate_late_fee_endpoint(req: LateFeeRequest):
+    logger.info(
+        "Received calculate-late-fee request: principal=%.2f, overdue_days=%d, installment_count=%d",
+        req.principal,
+        req.overdue_days,
+        req.installment_count,
+    )
     try:
         result = calculate_late_fee(
             req.principal, req.overdue_days, req.installment_count
+        )
+        logger.info(
+            "Calculated late fee successfully: principal=%.2f, late_fee=%.2f",
+            req.principal,
+            result.get("late_fee", 0.0),
         )
         return LateFeeResponse(**result)
     except Exception as e:

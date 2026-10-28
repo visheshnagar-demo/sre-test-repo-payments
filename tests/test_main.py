@@ -16,6 +16,12 @@ def test_readyz():
     assert response.json() == {"status": "ready"}
 
 
+def test_metrics():
+    response = client.get("/metrics")
+    assert response.status_code == 200
+    assert response.json()["status"] == "healthy"
+
+
 def test_root():
     response = client.get("/")
     assert response.status_code == 200
