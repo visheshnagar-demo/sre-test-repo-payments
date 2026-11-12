@@ -1,5 +1,6 @@
 """Unit tests for calculate_late_fee."""
 
+import importlib
 import pytest
 from server.calculator import DAILY_RATE, calculate_late_fee
 
@@ -47,3 +48,11 @@ def test_retry_and_exception_safety():
     result = calculate_late_fee(5000.0, 15, 0, max_retries=2)
     assert result["late_fee"] == 0.0
     assert "daily_rate" in result
+
+
+def test_app_alias_compatibility():
+    """Verify app.calculator alias works identically."""
+    app_calc = importlib.import_module("app.calculator")
+    result = app_calc.calculate_late_fee(10000.0, 30, 0)
+    assert result["late_fee"] == 0.0
+    assert result["daily_rate"] == pytest.approx(DAILY_RATE, rel=1e-6)
