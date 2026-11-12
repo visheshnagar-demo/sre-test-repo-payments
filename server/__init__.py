@@ -1,4 +1,5 @@
 """Server package with app alias compatibility."""
+
 import sys
 from . import calculator, main, models
 
